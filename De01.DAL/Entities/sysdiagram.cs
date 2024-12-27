@@ -1,4 +1,4 @@
-namespace De01.Models
+namespace De01.DAL.Entities
 {
     using System;
     using System.Collections.Generic;

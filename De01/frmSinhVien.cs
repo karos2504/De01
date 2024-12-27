@@ -1,26 +1,59 @@
-﻿using De01.Models;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.Remoting.Contexts;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using De01.DAL.Entities;
+using De01_BLL;
 
 namespace De01
 {
     public partial class frmSinhVien : Form
     {
-        StudentContextDB context = new StudentContextDB();
+        private readonly StudentService studentService;
+        private string currentAction = "";
 
         public frmSinhVien()
         {
             InitializeComponent();
+            studentService = new StudentService();
         }
 
-        public void SetNut(bool e)
+        private void frmSinhVien_Load(object sender, EventArgs e)
+        {
+            var students = studentService.GetAllStudents();
+            var classes = studentService.GetAllClasses();
+            FillFacultyCombobox(classes);
+            BindGrid(students);
+            SetButtonState(true);
+        }
+
+        private void FillFacultyCombobox(List<Lop> listClasses)
+        {
+            cboLop.DataSource = listClasses;
+            cboLop.DisplayMember = "TenLop";
+            cboLop.ValueMember = "MaLop";
+        }
+
+        private void BindGrid(List<Sinhvien> listStudents)
+        {
+            dgvSinhVien.Rows.Clear();
+            foreach (var student in listStudents)
+            {
+                int index = dgvSinhVien.Rows.Add();
+                dgvSinhVien.Rows[index].Cells[0].Value = student.MaSV;
+                dgvSinhVien.Rows[index].Cells[1].Value = student.HoTenSV;
+                dgvSinhVien.Rows[index].Cells[2].Value = student.NgaySinh.HasValue ? student.NgaySinh.Value.ToString("dd/MM/yyyy") : "";
+                dgvSinhVien.Rows[index].Cells[3].Value = student.Lop?.TenLop;
+            }
+        }
+
+        public void SetButtonState(bool e)
         {
             btnThem.Enabled = e;
             btnSua.Enabled = e;
@@ -28,42 +61,6 @@ namespace De01
             btnLuu.Enabled = !e;
             btnKLuu.Enabled = !e;
             btnThoat.Enabled = e;
-        }
-
-        private void frmSinhVien_Load(object sender, EventArgs e)
-        {
-            try
-            {
-                List<Sinhvien> listStudent = context.Sinhviens.ToList();
-                List<Lop> listClass = context.Lops.ToList();
-                FillFalcultyCombobox(listClass);
-                BindGrid(listStudent);
-                SetNut(true);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-        }
-
-        private void FillFalcultyCombobox(List<Lop> listClass)
-        {
-            cboLop.DataSource = listClass;
-            cboLop.DisplayMember = "TenLop";
-            cboLop.ValueMember = "MaLop";
-        }
-
-        private void BindGrid(List<Sinhvien> listStudent)
-        {
-            dgvSinhVien.Rows.Clear();
-            foreach (var item in listStudent)
-            {
-                int index = dgvSinhVien.Rows.Add();
-                dgvSinhVien.Rows[index].Cells[0].Value = item.MaSV;
-                dgvSinhVien.Rows[index].Cells[1].Value = item.HoTenSV;
-                dgvSinhVien.Rows[index].Cells[2].Value = item.NgaySinh.HasValue ? item.NgaySinh.Value.ToString("dd/MM/yyyy") : "";
-                dgvSinhVien.Rows[index].Cells[3].Value = item.Lop.TenLop;
-            }
         }
 
         private void ResetInputs()
@@ -75,76 +72,37 @@ namespace De01
                 cboLop.SelectedIndex = 0;
         }
 
-        private bool ValidateInputs()
-        {
-            if (string.IsNullOrEmpty(txtMaSV.Text))
-            {
-                MessageBox.Show("Mã số sinh viên không được để trống!");
-                txtMaSV.Focus();
-                return false;
-            }
-
-            if (txtMaSV.Text.Length != 6)
-            {
-                MessageBox.Show("Mã số sinh viên phải có đúng 6 ký tự!");
-                txtMaSV.Focus();
-                return false;
-            }
-
-            if (string.IsNullOrEmpty(txtHotenSV.Text))
-            {
-                MessageBox.Show("Họ tên sinh viên không được để trống!");
-                txtHotenSV.Focus();
-                return false;
-            }
-
-            if (cboLop.SelectedItem == null)
-            {
-                MessageBox.Show("Vui lòng chọn lớp!");
-                cboLop.Focus();
-                return false;
-            }
-
-            return true;
-        }
-
-        private string currentAction = "";
-
         private void btnThem_Click(object sender, EventArgs e)
         {
-            if (!ValidateInputs())
-                return;
-            currentAction = "Them";
-            SetNut(false); 
+            currentAction = "Add";
+            SetButtonState(false);
             ResetInputs();
-            txtMaSV.Focus();
-
-        }
-
-        private void btnXoa_Click(object sender, EventArgs e)
-        {
-            if (string.IsNullOrEmpty(txtMaSV.Text))
-            {
-                MessageBox.Show("Hãy chọn một sinh viên để xóa!");
-                return;
-            }
-            currentAction = "Xoa";
-            SetNut(false);
-   
         }
 
         private void btnSua_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(txtMaSV.Text))
             {
-                MessageBox.Show("Hãy chọn một sinh viên để sửa!");
+                MessageBox.Show("Hãy chọn sinh viên cần sửa!");
                 return;
             }
-            currentAction = "Sua";
-            SetNut(false); 
-            txtHotenSV.Focus();
+            currentAction = "Edit";
+            SetButtonState(false);
         }
 
+        private void btnXoa_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(txtMaSV.Text))
+            {
+                MessageBox.Show("Hãy chọn sinh viên cần xóa!");
+                return;
+            }
+
+            studentService.DeleteStudent(txtMaSV.Text);
+            MessageBox.Show("Xóa thành công!");
+            BindGrid(studentService.GetAllStudents());
+            ResetInputs();
+        }
         private void dgvSinhVien_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0)
@@ -159,82 +117,34 @@ namespace De01
 
         private void btnLuu_Click(object sender, EventArgs e)
         {
-            try
+            var student = new Sinhvien
             {
-                switch (currentAction)
-                {
-                    case "Them":
-                        Sinhvien newStudent = new Sinhvien
-                        {
-                            MaSV = txtMaSV.Text,
-                            HoTenSV = txtHotenSV.Text,
-                            NgaySinh = dtpNgaySinh.Value,
-                            MaLop = cboLop.SelectedValue.ToString()
-                        };
-                        context.Sinhviens.Add(newStudent);
-                        context.SaveChanges();
-                        MessageBox.Show("Thêm mới sinh viên thành công!");
-                        break;
+                MaSV = txtMaSV.Text,
+                HoTenSV = txtHotenSV.Text,
+                NgaySinh = dtpNgaySinh.Value,
+                MaLop = cboLop.SelectedValue.ToString()
+            };
 
-                    case "Sua":
-                        var studentToEdit = context.Sinhviens.FirstOrDefault(s => s.MaSV == txtMaSV.Text);
-                        if (studentToEdit == null)
-                        {
-                            MessageBox.Show("Không tìm thấy sinh viên cần sửa!");
-                            return;
-                        }
-                        studentToEdit.HoTenSV = txtHotenSV.Text;
-                        studentToEdit.NgaySinh = dtpNgaySinh.Value;
-                        studentToEdit.MaLop = cboLop.SelectedValue.ToString();
-                        context.SaveChanges();
-                        MessageBox.Show("Sửa thông tin sinh viên thành công!");
-                        break;
-
-                    case "Xoa":
-                        var studentToDelete = context.Sinhviens.FirstOrDefault(s => s.MaSV == txtMaSV.Text);
-                        if (studentToDelete == null)
-                        {
-                            MessageBox.Show("Không tìm thấy sinh viên cần xóa!");
-                            return;
-                        }
-                        if (MessageBox.Show("Bạn có chắc chắn muốn xóa sinh viên này?", "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
-                        {
-                            context.Sinhviens.Remove(studentToDelete);
-                            context.SaveChanges();
-                            MessageBox.Show("Xóa sinh viên thành công!");
-                        }
-                        break;
-
-                    default:
-                        MessageBox.Show("Không có hành động nào được chọn!");
-                        return;
-                }
-
-                BindGrid(context.Sinhviens.ToList());
-
-                ResetInputs();
-                SetNut(true);
-                currentAction = "";
-            }
-            catch (Exception ex)
+            if (currentAction == "Add")
             {
-                MessageBox.Show($"Lỗi: {ex.Message}");
+                studentService.AddStudent(student);
+                MessageBox.Show("Thêm thành công!");
             }
+            else if (currentAction == "Edit")
+            {
+                studentService.UpdateStudent(student);
+                MessageBox.Show("Sửa thành công!");
+            }
+
+            BindGrid(studentService.GetAllStudents());
+            ResetInputs();
+            SetButtonState(true);
         }
 
         private void btnKLuu_Click(object sender, EventArgs e)
         {
             ResetInputs();
-            BindGrid(context.Sinhviens.ToList());
-            SetNut(true);
-        }
-
-        private void btnThoat_Click(object sender, EventArgs e)
-        {
-            if (MessageBox.Show("Bạn có chắc chắn muốn thoát?", "Thông báo", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-            {
-                Close();
-            }
+            SetButtonState(true);
         }
 
         private void btnTim_Click(object sender, EventArgs e)
@@ -243,7 +153,7 @@ namespace De01
             {
                 string keyword = txtTimKiem.Text.Trim().ToLower();
 
-                var result = context.Sinhviens
+                var result = studentService.GetAllStudents()
                     .Where(s => s.MaSV.ToLower().Contains(keyword) ||
                                 s.HoTenSV.ToLower().Contains(keyword) ||
                                 s.Lop.TenLop.ToLower().Contains(keyword))
@@ -256,13 +166,21 @@ namespace De01
                 else
                 {
                     MessageBox.Show("Không tìm thấy sinh viên nào khớp với từ khóa tìm kiếm!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    BindGrid(context.Sinhviens.ToList());
+                    BindGrid(result);
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Lỗi: {ex.Message}", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void btnThoat_Click(object sender, EventArgs e)
+        {
+            if (MessageBox.Show("Bạn có muốn thoát", "Thông báo", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                this.Close();
+            }    
         }
     }
 }

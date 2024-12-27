@@ -268,6 +268,7 @@
             this.Controls.Add(this.txtTimKiem);
             this.Controls.Add(this.groupBox1);
             this.Name = "frmSinhVien";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "DANH SÁCH SINH VIÊN";
             this.Load += new System.EventHandler(this.frmSinhVien_Load);
             this.groupBox1.ResumeLayout(false);

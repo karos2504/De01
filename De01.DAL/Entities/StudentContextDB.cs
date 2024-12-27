@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity;
 using System.Linq;
 
-namespace De01.Models
+namespace De01.DAL.Entities
 {
     public partial class StudentContextDB : DbContext
     {
